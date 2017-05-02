@@ -1,5 +1,5 @@
-$aleph-theme: #333 !default;
-$aleph-dark: #3a4953 !default;
+$aleph-accent: #982022 !default;
+$aleph-theme: #3a4953 !default;
 $aleph-highlights: yellow !default;
 
 @import "custom";
@@ -20,11 +20,17 @@ $base-unit: 12px;
 $link-color: #982022;
 
 // Style tiles, Fonts
-$font-family-sans-serif: 'Open Sans', sans-serif !default;
+$font-family-sans-serif: 'Open Sans', sans-serif;
 $font-family-serif: 'Georgia', serif !default;
 $input-border-focus: $brand-primary;
 
-@import "../vendor/bootstrap-sass/assets/stylesheets/_bootstrap";
+// Fix asset paths
+$icon-font-path: "~bootstrap-sass/assets/fonts/bootstrap/";
+$fa-font-path: "~font-awesome/fonts";
+
+@import "~font-awesome/scss/font-awesome";
+@import "~ui-select/dist/select.css";
+@import "~bootstrap-sass/assets/stylesheets/_bootstrap";
 @import "mixins";
 
 html {
@@ -37,7 +43,7 @@ a {
 
 body {
     min-height: 100vh;
-    background-color: $text-muted;
+    background-color: $aleph-theme;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -51,6 +57,11 @@ footer {
         color: white;
         text-decoration: underline;
     }
+        &:hover {
+            color: white;
+            text-decoration: none;
+        }
+    }
 }
 
 @import "loading_bar";
@@ -59,9 +70,7 @@ footer {
 @import "nav";
 @import "home";
 @import "search";
-@import "network";
-@import "tabular";
-@import "text";
+@import "documents";
 @import "spinner";
 @import "entities";
 @import "collections";
@@ -77,6 +86,14 @@ footer {
     a {
         color: $page-bg;
     }
+}
+
+#maintenance {
+    text-align: center;
+    background-color: $brand-warning;
+    color: white;
+    font-weight: bold;
+    padding: 0.5em 0 0.5em 0;
 }
 
 #page {

@@ -1,58 +1,69 @@
+import six
 import json
 import logging
+import fingerprints
+from pprint import pprint  # noqa
 from urlparse import urljoin
 from flask import Blueprint, request, url_for
 from apikit import jsonify
 from werkzeug.exceptions import BadRequest
 
-from aleph import authz
 from aleph.events import log_event
-from aleph.core import app_url, app_title
-from aleph.model.validation import implied_schemas, resolver
-from aleph.search.entities import suggest_entities
+from aleph.search import QueryState
+from aleph.util import ensure_list
+from aleph.core import app_url, app_title, schemata
+from aleph.search.entities import suggest_entities, similar_entities
 
+# See: https://github.com/OpenRefine/OpenRefine/wiki/Reconciliation-Service-API
 
 blueprint = Blueprint('reconcile_api', __name__)
 log = logging.getLogger(__name__)
 
-DEFAULT_TYPE = '/entity/entity.json#'
-
 
 def entity_link(id):
-    return urljoin(app_url, '/search?entity=%s' % id)
+    return urljoin(app_url, '/entities/%s' % id)
 
 
 def get_freebase_types():
     types = []
-    for uri in implied_schemas(DEFAULT_TYPE):
-        _, schema = resolver.resolve(uri)
-        types.append({
-            'id': uri,
-            'name': schema.get('title')
-        })
+    for schema in schemata.schemata.values():
+        if schema.section == schema.ENTITY:
+            types.append({
+                'id': schema.name,
+                'name': schema.label
+            })
     return types
 
 
 def reconcile_op(query):
     """Reconcile operation for a single query."""
-    name = query.get('query', '').strip()
-    size = int(query.get('limit', '5'))
-    schemas = implied_schemas(query.get('type'))
-    types = get_freebase_types()
-    # TODO: jurisdiction_code etc.
-    # for p in query.get('properties', []):
-    #    q[p.get('pid')] = p.get('v')
+    state = QueryState({
+        'limit': query.get('limit', '5'),
+        'strict': 'false'
+    }, request.authz)
+
+    name = query.get('query', '')
+    entity = {
+        'id': 'fake',
+        'names': [name],
+        'fingerprints': [fingerprints.generate(name)],
+        'schemata': ensure_list(query.get('type'))
+    }
+
+    for p in query.get('properties', []):
+        entity[p.get('pid')] = ensure_list(p.get('v'))
+
+    suggested = similar_entities(entity, state)
     matches = []
-    suggested = suggest_entities(name, schemas=schemas, size=size)
-    for entity in suggested.get('results'):
-        types = [t for t in types if entity['$schema'] == t['id']]
+    for ent in suggested.get('results'):
+        types = [t for t in get_freebase_types() if ent['schema'] == t['id']]
         matches.append({
-            'id': entity.get('id'),
-            'name': entity.get('name'),
+            'id': ent.get('id'),
+            'name': ent.get('name'),
             'type': types,
-            'score': entity.get('score') * 10,
-            'uri': entity_link(entity.get('id')),
-            'match': entity['match']
+            'score': min(100, ent.get('score') * 10),
+            'uri': entity_link(ent.get('id')),
+            'match': ent.get('name') == name
         })
     log.info("Reconciled: %r -> %d matches", name, len(matches))
     return {
@@ -63,17 +74,18 @@ def reconcile_op(query):
 
 def reconcile_index():
     domain = app_url.strip('/')
-    api_key = request.auth_role.api_key if authz.logged_in() else None
-    preview_uri = entity_link('{{id}}') + '&preview=true&api_key=%s' % api_key
+    api_key = request.authz.role.api_key if request.authz.logged_in else None
     meta = {
-        'name': app_title,
+        'name': six.text_type(app_title),
         'identifierSpace': 'http://rdf.freebase.com/ns/type.object.id',
         'schemaSpace': 'http://rdf.freebase.com/ns/type.object.id',
-        'view': {'url': entity_link('{{id}}')},
+        'view': {
+            'url': entity_link('{{id}}')
+        },
         'preview': {
-            'url': preview_uri,
-            'width': 600,
-            'height': 300
+            'url': entity_link('{{id}}') + '?api_key=%s' % api_key,
+            'width': 800,
+            'height': 400
         },
         'suggest': {
             'entity': {
@@ -91,7 +103,7 @@ def reconcile_index():
             }
         },
         'defaultTypes': [{
-            'id': DEFAULT_TYPE,
+            'id': 'Entity',
             'name': 'Persons and Companies'
         }]
     }
@@ -105,7 +117,6 @@ def reconcile():
 
     See: http://code.google.com/p/google-refine/wiki/ReconciliationServiceApi
     """
-    # authz.require(authz.system_read())
     data = request.args.copy()
     data.update(request.form.copy())
     log_event(request)
@@ -139,20 +150,19 @@ def reconcile():
 @blueprint.route('/api/freebase/suggest', methods=['GET', 'POST'])
 def suggest_entity():
     """Suggest API, emulates Google Refine API."""
-    # See: https://github.com/OpenRefine/OpenRefine/wiki/Reconciliation-Service-API
     prefix = request.args.get('prefix', '').lower()
     schemas = request.args.getlist('type')
-    schemas = list(set([implied_schemas(s) for s in schemas]))
     types = get_freebase_types()
     matches = []
-    for entity in suggest_entities(prefix, schemas=schemas).get('results'):
+    suggested = suggest_entities(prefix, request.authz, schemas=schemas)
+    for entity in suggested.get('results'):
         types_ = [t for t in types if entity['$schema'] == t['id']]
         matches.append({
             'quid': entity.get('id'),
             'id': entity.get('id'),
             'name': entity.get('name'),
             'n:type': types_[0],
-            'type': [types[0]['name']],
+            'type': [types_[0]['name']],
             'r:score': entity.get('score'),
         })
     return jsonify({
@@ -165,20 +175,27 @@ def suggest_entity():
 
 @blueprint.route('/api/freebase/property', methods=['GET', 'POST'])
 def suggest_property():
-    # authz.require(authz.system_read())
     prefix = request.args.get('prefix', '').lower().strip()
     properties = [{
-        'id': 'jurisdiction_code',
-        'name': 'Jurisdiction',
+        'id': 'countries',
+        'name': 'Countries',
         'match': 'Jurisdiction, Country, Nationality'
     }, {
-        'id': 'identifiers.identifier',
-        'name': 'External Identifier',
+        'id': 'identifiers',
+        'name': 'External Identifiers',
         'match': 'Data identifier code company id'
     }, {
-        'id': 'contact_details.value',
-        'name': 'Contact Detail',
-        'match': 'Contact detail, phone number, email, fax, fon'
+        'id': 'phones',
+        'name': 'Phones',
+        'match': 'Phone number'
+    }, {
+        'id': 'emails',
+        'name': 'EMails',
+        'match': 'E-Mail addresses'
+    }, {
+        'id': 'addresses',
+        'name': 'Addresses',
+        'match': 'Geographic addresses'
     }]
     matches = []
     for prop in properties:

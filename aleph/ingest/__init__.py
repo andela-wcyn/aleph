@@ -19,6 +19,8 @@ SKIP_ENTRIES = ['.git', '.hg', '.DS_Store', '.gitignore', 'Thumbs.db',
 @celery.task(bind=True, max_retries=3)
 def ingest_url(self, collection_id, metadata, url):
     meta = Metadata.from_data(metadata)
+    if meta.foreign_id is None:
+        meta.foreign_id = url
     tmp_path = make_tempfile(meta.file_name, suffix=meta.extension)
     try:
         log.info("Ingesting URL: %s", url)
@@ -63,6 +65,7 @@ def ingest_directory(collection_id, meta, local_path, base_path=None,
     if not os.path.isdir(local_path):
         child = meta.make_child()
         child.source_path = base_path
+        child.foreign_id = base_path
         return ingest_file(collection_id, child, local_path, move=move)
 
     # handle bundles

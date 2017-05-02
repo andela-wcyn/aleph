@@ -14,6 +14,9 @@ def get_oauth_token():
 
 
 def setup_providers(app):
+    # Reset the remote apps first!
+    oauth.remote_apps = {}
+
     providers = app.config.get('OAUTH', [])
     if isinstance(providers, dict):
         # support for legacy single google provider
@@ -59,7 +62,6 @@ def handle_google_oauth(sender, provider=None, session=None):
     user_id = 'google:%s' % me.data.get('id')
     role = Role.load_or_create(user_id, Role.USER, me.data.get('name'),
                                email=me.data.get('email'))
-    session['roles'].append(role.id)
     session['user'] = role.id
 
 
@@ -73,5 +75,4 @@ def handle_facebook_oauth(sender, provider=None, session=None):
     user_id = 'facebook:%s' % me.data.get('id')
     role = Role.load_or_create(user_id, Role.USER, me.data.get('name'),
                                email=me.data.get('email'))
-    session['roles'].append(role.id)
     session['user'] = role.id

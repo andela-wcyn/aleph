@@ -5,11 +5,13 @@ from apikit import jsonify
 from flask import render_template, current_app, Blueprint, request
 from jsonschema import ValidationError
 from elasticsearch import TransportError
+from dalet import COUNTRY_NAMES, LANGUAGE_NAMES
 
-from aleph.core import get_config, app_title, app_url
+from aleph.core import get_config, app_title, app_url, schemata
 from aleph.metadata import Metadata
-from aleph.metadata.reference import COUNTRY_NAMES, LANGUAGE_NAMES
-from aleph.model.validation import resolver
+from aleph.search import QueryState
+from aleph.search import documents_query, entities_query
+from aleph.schema import SchemaValidationException
 from aleph.views.cache import enable_cache
 
 blueprint = Blueprint('base_api', __name__)
@@ -34,17 +36,21 @@ def angular_templates():
     return templates.items()
 
 
-@blueprint.route('/search')
 @blueprint.route('/help')
 @blueprint.route('/help/<path:path>')
 @blueprint.route('/entities')
 @blueprint.route('/entities/<path:path>')
+@blueprint.route('/documents')
+@blueprint.route('/documents/<path:path>')
+@blueprint.route('/datasets')
+@blueprint.route('/datasets/<path:path>')
 @blueprint.route('/crawlers')
 @blueprint.route('/crawlers/<path:path>')
 @blueprint.route('/collections')
 @blueprint.route('/collections/<path:path>')
 @blueprint.route('/tabular/<path:path>')
 @blueprint.route('/text/<path:path>')
+@blueprint.route('/signup/<path:path>')
 @blueprint.route('/')
 def ui(**kwargs):
     enable_cache(server_side=True)
@@ -54,23 +60,9 @@ def ui(**kwargs):
 @blueprint.route('/api/1/metadata')
 def metadata():
     enable_cache(server_side=False)
-    schemata = {}
-    for schema_id, schema in resolver.store.items():
-        # TODO: figure out if this is reliable.
-        if not schema_id.startswith('/entity/'):
-            continue
-        if not schema_id.endswith('#'):
-            schema_id = schema_id + '#'
-        schemata[schema_id] = {
-            'id': schema_id,
-            'title': schema.get('title'),
-            'faIcon': schema.get('faIcon'),
-            'plural': schema.get('plural', schema.get('title')),
-            'description': schema.get('description'),
-            'inline': schema.get('inline', False)
-        }
     return jsonify({
         'status': 'ok',
+        'maintenance': request.authz.in_maintenance,
         'app': {
             'title': six.text_type(app_title),
             'url': six.text_type(app_url),
@@ -88,13 +80,25 @@ def metadata():
     })
 
 
+@blueprint.route('/api/1/statistics')
+def statistics():
+    enable_cache(vary_user=True)
+    documents = documents_query(QueryState({}, request.authz, limit=0))
+    entities = entities_query(QueryState({}, request.authz, limit=0))
+    return jsonify({
+        'documents_count': documents.get('total'),
+        'entities_count': entities.get('total'),
+        'collections_count': len(request.authz.collections_read)
+    })
+
+
 @blueprint.app_errorhandler(403)
 def handle_authz_error(err):
     return jsonify({
         'status': 'error',
         'message': 'You are not authorized to do this.',
-        'roles': request.auth_roles,
-        'user': request.auth_role
+        'roles': request.authz.roles,
+        'user': request.authz.role
     }, status=403)
 
 
@@ -106,10 +110,27 @@ def handle_validation_error(err):
     }, status=400)
 
 
-@blueprint.app_errorhandler(TransportError)
-def handle_es_error(err):
+@blueprint.app_errorhandler(SchemaValidationException)
+def handle_schema_validation_error(err):
     return jsonify({
         'status': 'error',
-        'message': err.error,
-        'info': err.info.get('error', {}).get('root_cause', [])[-1]
+        'errors': err.errors
     }, status=400)
+
+
+@blueprint.app_errorhandler(TransportError)
+def handle_es_error(err):
+    message = err.error
+    try:
+        status = int(err.status_code)
+    except:
+        status = 500
+    try:
+        for cause in err.info.get('error', {}).get('root_cause', []):
+            message = cause.get('reason', message)
+    except Exception as ex:
+        log.debug(ex)
+    return jsonify({
+        'status': 'error',
+        'message': message
+    }, status=status)

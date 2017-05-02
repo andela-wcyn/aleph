@@ -1,3 +1,26 @@
+<div class="screen-header">
+  <div class="header-body">
+    <div class="actions">
+      <a ng-click="createCollection($event)" ng-if="authz.logged_in()"
+         class="btn btn-default">
+        <i class="fa fa-plus-square" aria-hidden="true"></i>
+        Create a collection
+      </a>
+      <a ng-click="triggerLogin()" ng-if="!authz.logged_in()"
+         class="btn btn-default">
+        <i class="fa fa-plus-square" aria-hidden="true"></i>
+        Sign in to create a collection
+      </a>
+    </div>
+
+    <h2>
+      <i class="fa fa-fw fa-address-book"></i>
+      Research collections
+    </h2>
+  </div>
+</div>
+
+
 <div class="screen">
   <div class="row search-bar">
     <div class="col-md-8">
@@ -8,20 +31,6 @@
     </div>
 
     <div class="col-md-4">
-      <div class="btn-group btn-group-justified" role="group">
-        <div class="btn-group">
-          <a ng-click="createCollection($event)" ng-if="authz.logged_in()"
-             class="btn btn-primary">
-            <i class="fa fa-plus-square" aria-hidden="true"></i>
-            Create a collection
-          </a>
-          <a ng-click="triggerLogin()" ng-if="!authz.logged_in()"
-             class="btn btn-primary">
-            <i class="fa fa-plus-square" aria-hidden="true"></i>
-            Sign in to create a collection
-          </a>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -32,94 +41,43 @@
         to upload document archives and create entity watchlists.
       </div>
 
-      <table class="table table-striped">
-        <tr ng-repeat="collection in collections.results track by collection.id">
-          <td>
-            <span ng-if="::!collection.public"
-                uib-tooltip="Only available to selected users"
-                tooltip-placement="right">
-              <i class="fa fa-fw fa-lock" aria-hidden="true"></i>
-            </span>
-            <span ng-if="::collection.public">
-              <i class="fa fa-fw fa-globe" aria-hidden="true"></i>
-            </span>
-            <a ng-href="{{::collection.getPath()}}">
-              {{::collection.label}}
-            </a>
-          </td>
-          <td class="nobreak" width="1%">
-            <span ng-if="::collection.category" class="label label-primary">
-              {{::collection.category | collectionCategory }}</span>
-          </td>
-          <td class="nobreak" width="1%">
-            <span ng-if="collection.entity_count">
-              <a href="/collections/{{::collection.id}}/entities">
-                <i class="fa fa-users" aria-hidden="true"></i>
-                {{::collection.entity_count | number}}
-              </a>
-            </span>
-            <span ng-if="collection.entity_count && collection.doc_count">
-              &middot;
-            </span>
-            <span ng-if="collection.doc_count">
-              <a href="/collections/{{::collection.id}}">
-                <i class="fa fa-file-text-o" aria-hidden="true"></i>
-                {{::collection.doc_count | number}}
-              </a>
-            </span>
-          </td>
-          <td class="nobreak numeric" width="1%">
-            {{::collection.updated_at | date }}
-          </td>
-        </tr>
-      </table>
+      <div class="list-group">
+        <a ng-repeat="collection in collections.results track by collection.id"
+           ng-href="{{::collection.getPath()}}"
+           class="list-group-item">
+          <span class="badge" ng-if="collection.doc_count">
+            <i class="fa fa-fw fa-file-text" aria-hidden="true"></i>
+            {{::collection.doc_count | number}}
+          </span>
+          <span class="badge" ng-if="collection.entity_count">
+            <i class="fa fa-fw fa-users" aria-hidden="true"></i>
+            {{::collection.entity_count | number}}
+          </span>
+          <privacy-icon subject="collection"></privacy-icon>
+          <strong class="list-group-item-heading">
+            {{::collection.label}}
+          </strong>
+          <p class="list-group-item-text summary"
+            ng-if="::collection.summary"
+            ng-bind="::collection.summary">
+          </p>
+        </a>
+      </div>
 
       <div class="bottom-pager">
-          <div class="pull-right">
-            <response-pager response="collections" load="loadOffset(offset)"></response-pager>
-          </div>
-          <div class="total" ng-if="collections.limit > 0 && collections.total">
-            Found {{collections.total | number}} collections.
-          </div>
+        <div class="pull-right">
+          <response-pager response="collections" load="loadOffset(offset)"></response-pager>
         </div>
+        <div class="total" ng-if="collections.limit > 0 && collections.total">
+          Found {{collections.total | number}} collections.
+        </div>
+      </div>
     </div>
 
     <div class="col-md-4">
-      <div class="panel panel-default panel-facet"
-           ng-if="collections.facets.category.length">
-        <div class="panel-heading">
-          <strong>Categories</strong>
-        </div>
-        <ul class="list-group">
-          <li class="list-group-item animate toggle"
-            ng-repeat="category in collections.facets.category"
-            ng-class="{'active': query.hasField('category', category.value)}"
-            ng-click="query.toggle('category', category.value)">
-            <span class="badge">{{::category.count | number}}</span>
-            <span class="lbl">
-              {{::category.value | collectionCategory}}
-            </span>
-          </li>
-        </ul>
-      </div>
-
-      <div class="panel panel-default panel-facet panel-facet-scroll"
-           ng-if="collections.facets.countries.length">
-        <div class="panel-heading">
-          <strong>Countries</strong>
-        </div>
-        <ul class="list-group">
-          <li class="list-group-item animate toggle"
-            ng-repeat="country in collections.facets.countries"
-            ng-class="{'active': query.hasField('countries', country.value)}"
-            ng-click="query.toggle('countries', country.value)">
-            <span class="badge">{{::country.count | number}}</span>
-            <span class="lbl">
-              {{::country.value | country}}
-            </span>
-          </li>
-        </ul>
-      </div>
+      <search-facet result="collections" query="query" title="Countries"
+                    facet="countries">
+      </search-facet>
     </div>
   </div>
 </div>

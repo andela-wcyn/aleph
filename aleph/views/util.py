@@ -1,21 +1,37 @@
 import StringIO
+from apikit import obj_or_404
 from flask import request
 from urlparse import urlparse, urljoin
-
-from werkzeug.exceptions import NotFound
+from werkzeug.exceptions import NotFound, ImATeapot
 import xlsxwriter
 
-from aleph import authz
 from aleph.core import db
+from aleph.authz import Authz
 from aleph.model import Document, DocumentPage
+from aleph.logic import fetch_entity
 
 
-def get_document(document_id):
+def get_entity(id, action):
+    entity, obj = fetch_entity(id)
+    if obj is None:
+        entity = obj_or_404(entity)
+        # Apply roles-based security to dataset-sourced entities.
+        request.authz.require(request.authz.check_roles(entity.get('roles')))
+        # Cannot edit them:
+        if action == request.authz.WRITE:
+            raise ImATeapot("Cannot write this entity.")
+    else:
+        collections = request.authz.collections.get(action)
+        request.authz.require(obj.collection_id in collections)
+    return entity, obj
+
+
+def get_document(document_id, action=Authz.READ):
     document = Document.by_id(document_id)
     if document is None:
         raise NotFound()
-    readable = [c for c in document.collection_ids if authz.collection_read(c)]
-    authz.require(len(readable))
+    collections = request.authz.collections.get(action)
+    request.authz.require(document.collection_id in collections)
     return document
 
 
@@ -68,7 +84,7 @@ def make_excel(result_iter, fields):
             val = data.get(field, '')
             if isinstance(val, (list, tuple, set)):
                 val = ', '.join(val)
-            worksheet.write(row, col, val)
+            worksheet.write_string(row, col, val)
             col += 1
         row += 1
 
@@ -76,3 +92,21 @@ def make_excel(result_iter, fields):
     workbook.close()
     output.seek(0)
     return output
+
+
+def extract_next_url(req):
+    """Extracts the URL/path to follow when redirects/unauthorization occurs.
+
+    :param object req: Flask request object to extract from.
+    :return: Path of the next target URL.
+    :rtype: str
+    """
+    next_url = '/'
+
+    for target in req.args.get('next'), req.referrer:
+        if not target:
+            continue
+        if is_safe_url(target):
+            next_url = target
+
+    return next_url

@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='aleph',
-    version='1.1',
+    version='1.2-dev',
     description="Document sifting web frontend",
     long_description="",
     classifiers=[
@@ -14,7 +14,7 @@ setup(
     keywords='',
     author='Friedrich Lindenberg',
     author_email='friedrich@pudo.org',
-    url='http://pudo.org',
+    url='http://aleph.readthedocs.io',
     license='MIT',
     packages=find_packages(exclude=['ez_setup', 'examples', 'test']),
     namespace_packages=[],
@@ -27,6 +27,7 @@ setup(
             'skip = aleph.ingest.dummy:SkipIngestor',
             'pdf = aleph.ingest.text:PDFIngestor',
             'doc = aleph.ingest.document:DocumentIngestor',
+            'txt = aleph.ingest.document:PlainTextIngestor',
             'ppt = aleph.ingest.document:PresentationIngestor',
             'html = aleph.ingest.html:HtmlIngestor',
             'djvu = aleph.ingest.djvu:DjVuIngestor',
@@ -51,7 +52,7 @@ setup(
             'emails = aleph.analyze.regex:EMailAnalyzer',
             'urls = aleph.analyze.regex:URLAnalyzer',
             'phones = aleph.analyze.regex:PhoneNumberAnalyzer',
-            'regex = aleph.analyze.regex_entity:AhoCorasickEntityAnalyzer',
+            'corasick = aleph.analyze.corasick_entity:AhoCorasickEntityAnalyzer',  # noqa
             'polyglot = aleph.analyze.polyglot_entity:PolyglotEntityAnalyzer'
         ],
         'aleph.crawlers': [

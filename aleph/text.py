@@ -1,66 +1,61 @@
 # coding: utf-8
-import re
 import six
 import logging
-from decimal import Decimal
-from normality import guess_encoding, collapse_spaces
-from normality import latinize_text, category_replace
-from normality import slugify as _slugify
-from unicodedata import category
-from datetime import datetime, date
+from normality import normalize, stringify, latinize_text, collapse_spaces
+from normality import slugify  # noqa
+from normality.cleaning import decompose_nfkd, remove_control_chars
 
 log = logging.getLogger(__name__)
-COLLAPSE = re.compile(r'\s+')
-WS = ' '
+INDEX_MAX_LEN = 1024 * 1024 * 100
 
 
-def slugify(text, sep='-'):
-    text = latinize_text(text)
-    return _slugify(text, sep=sep)
+def index_form(texts):
+    """Turn a set of strings into the appropriate form for indexing."""
+    results = []
+    total_len = 0
+
+    for text in texts:
+        # We don't want to store more than INDEX_MAX_LEN of text per doc
+        if total_len > INDEX_MAX_LEN:
+            # TODO: there might be nicer techniques for dealing with overly
+            # long text buffers?
+            results = list(set(results))
+            total_len = sum((len(t) for t in results))
+            if total_len > INDEX_MAX_LEN:
+                break
+
+        text = stringify(text)
+        if text is None:
+            continue
+        text = collapse_spaces(text)
+        # XXX: is NFKD a great idea?
+        text = decompose_nfkd(text)
+        total_len += len(text)
+        results.append(text)
+
+        # Make latinized text version
+        latin = latinize_text(text)
+        latin = stringify(latin)
+        if latin is None or latin == text:
+            continue
+        total_len += len(latin)
+        results.append(latin)
+    return results
 
 
-def normalize_strong(text):
-    """Perform heavy normalisation of a given text.
+def match_form(text):
+    """Turn a string into a form appropriate for name matching.
 
     The goal of this function is not to retain a readable version of the given
     string, but rather to yield a normalised version suitable for comparisons
     and machine analysis.
     """
-    text = latinize_text(string_value(text))
-    if text is None:
-        return
-    text = category_replace(text.lower())
-    return collapse_spaces(text)
+    return normalize(text, lowercase=True, ascii=True)
 
 
-def string_value(value, encoding_default='utf-8', encoding=None):
-    """Brute-force convert a given object to a string.
-
-    This will attempt an increasingly mean set of conversions to make a given
-    object into a unicode string. It is guaranteed to either return unicode or
-    None, if all conversions failed (or the value is indeed empty).
-    """
-    if value is None:
-        return None
-
-    if isinstance(value, (date, datetime)):
-        return value.isoformat()
-
-    if isinstance(value, (float, Decimal)):
-        return Decimal(value).to_eng_string()
-
-    if isinstance(value, six.string_types):
-        if not isinstance(value, six.text_type):
-            if encoding is None:
-                encoding = guess_encoding(encoding_default)
-            value = value.decode(encoding, 'replace')
-        value = ''.join(ch for ch in value if category(ch)[0] != 'C')
-        value = value.replace(u'\xfe\xff', '')  # remove BOM
-    else:
-        value = six.text_type(value)
-
-    if not len(value.strip()):
-        return None
+def string_value(value, encoding=None):
+    value = stringify(value, encoding=encoding, encoding_default='utf-8')
+    value = remove_control_chars(value)
     return value
 
 

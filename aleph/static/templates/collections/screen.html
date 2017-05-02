@@ -1,4 +1,4 @@
-<div ngf-drop ng-model="uploads" ngf-drag-over-class="'file-drop-area'" 
+<div ngf-drop ng-model="uploads" ngf-drag-over-class="'file-drop-area'"
      ngf-stop-propagation="true" ngf-multiple="true" ngf-keep="'distinct'"
      ngf-model-options="{updateOn: 'drop', allowInvalid: false}"
      ngf-drop-disabled="!collection.can_add" id="collections-screen">
@@ -8,65 +8,53 @@
     </div>
   </div>
   <div class="collection-header">
-    <h2>
-      <span ng-if="::!collection.public"
-          uib-tooltip="Only available to selected users"
-          tooltip-placement="right">
-        <i class="fa fa-lock" aria-hidden="true"></i>
-      </span>
-      <span ng-if="::collection.public">
-        <i class="fa fa-globe" aria-hidden="true"></i>
-      </span>
-      <!-- span ng-if="::collection.category" class="label label-primary">
-        {{::collection.category | collectionCategory }}</span-->
-      {{::collection.label}}
-    </h2>
-
-    <div class="actions">
-      <div class="btn-group" role="group">
-        <div class="btn-group" ng-if="::collection.can_add">
-          <a ng-click="ingestFiles([], $event)" class="btn btn-default">
-            <i class="fa fa-cloud-upload"></i>
-            Upload documents
-          </a>
-        </div>
-        <div class="btn-group" ng-if="::collection.can_add">
-          <a ng-href="/collections/{{::collection.id}}/entities/bulk"
-            class="btn btn-default">
-            <i class="fa fa-plus-square" aria-hidden="true"></i>
-            Create watchlist
-          </a>
+    <div class="header-body">
+      <div class="actions">
+        <div class="btn-group" role="group">
+          <div class="btn-group" ng-if="::collection.can_add">
+            <a ng-click="ingestFiles([], $event)" class="btn btn-default">
+              <i class="fa fa-cloud-upload"></i>
+              Upload documents
+            </a>
+          </div>
+          <div class="btn-group" ng-if="::collection.can_add">
+            <a ng-href="/collections/{{::collection.id}}/entities/bulk"
+              class="btn btn-default">
+              <i class="fa fa-plus-square" aria-hidden="true"></i>
+              Create watchlist
+            </a>
+          </div>
         </div>
       </div>
+
+      <h2>
+        <privacy-icon subject="collection"></privacy-icon>
+        {{::collection.label}}
+      </h2>
     </div>
-
-    <div class="clearfix"></div>
-
     <ul class="nav nav-tabs">
-      <li role="presentation" ng-class="{'active': section == 'documents', 'disabled': disable_documents}">
+      <li role="presentation" ng-class="{'active': section == 'documents', 'disabled': disableDocuments}">
         <a ng-href="/collections/{{::collection.id}}">
           <i class="fa fa-file-text-o" aria-hidden="true"></i>
           Documents
           <span class="badge">{{::collection.doc_count | number}}</span>
         </a>
       </li>
-      <li role="presentation" ng-class="{'active': section == 'entities', 'disabled': disable_entities}">
+      <li role="presentation" ng-class="{'active': section == 'entities'}" ng-if="::!disableEntities">
         <a ng-href="/collections/{{::collection.id}}/entities">
           <i class="fa fa-users" aria-hidden="true"></i>
           People and Companies
           <span class="badge">{{collection.entity_count | number}}</span>
         </a>
       </li>
-      <li role="presentation" ng-class="{'active': section == 'states'}"
-          ng-if="::show_states">
-        <a ng-href="/collections/{{::collection.id}}/states">
-          <i class="fa fa-hourglass-half" aria-hidden="true"></i>
-          Data Imports
-          <span class="badge">{{collection.crawler_state_count | number}}</span>
+      <li role="presentation" ng-class="{'active': section == 'leads'}" ng-if="::showLeads">
+        <a ng-href="/collections/{{::collection.id}}/leads">
+          <i class="fa fa-compress" aria-hidden="true"></i>
+          Leads
+          <span class="badge">{{collection.lead_count | number}}</span>
         </a>
       </li>
-      <li role="presentation" ng-class="{'active': section == 'settings'}"
-          ng-show="collection.can_edit">
+      <li role="presentation" ng-class="{'active': section == 'settings'}" ng-if="collection.can_edit">
         <a ng-href="/collections/{{::collection.id}}/settings">
           <i class="fa fa-cog" aria-hidden="true"></i>
           Settings

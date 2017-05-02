@@ -4,82 +4,77 @@ services:
   postgres:
     image: postgres:9.4
     volumes:
-      - "/opt/aleph/data/postgres:/var/lib/postgresql/data"
-      - "/opt/aleph/logs/postgres:/var/log"
+      - "./build/data/postgres:/var/lib/postgresql/data"
+      - "./build/logs/postgres:/var/log"
     environment:
       POSTGRES_USER:     aleph
       POSTGRES_PASSWORD: aleph
       POSTGRES_DATABASE: aleph
-    ports:
-     - "127.0.0.1:5439:5432"
 
   elasticsearch:
     image: elasticsearch:2.2.0
     volumes:
-      - "/opt/aleph/data/elasticsearch:/usr/share/elasticsearch/data"
-      - "/opt/aleph/logs/elasticsearch:/var/log"
-    ports:
-      - "127.0.0.1:9201:9209"
+      - "./build/data/elasticsearch:/usr/share/elasticsearch/data"
+      - "./build/logs/elasticsearch:/var/log"
 
   rabbitmq:
     image: rabbitmq
-    ports:
-      - 5672
+    volumes:
+      - "./build/data/rabbitmq:/var/lib/rabbitmq"
+      - "./build/logs/rabbitmq:/var/log"
 
-  # neo4j:
-  #   image: neo4j:3.0
-  #   volumes:
-  #     - "/opt/aleph/data/neo4j:/data"
-  #   ports:
-  #     - 7474
-  #     - 7687
+  ## If you enable Tika, also set ALEPH_TIKA_URI=http://tika:9998 on the
+  ## worker and web containers.
+  # tika:
+  #   image: logicalspark/docker-tikaserver
 
   worker:
       build: .
-      command: celery -A aleph.queue worker -c 10 -l INFO --logfile=/var/log/celery.log
+      command: celery -A aleph.queues -B -c 4 -l INFO worker --pidfile /var/lib/celery.pid
       links:
         - postgres
         - elasticsearch
-        # - neo4j
+        - rabbitmq
       volumes:
-        - "/:/host"
-        - "/opt/aleph/archive:/data"
-        - "/opt/aleph/logs/worker:/var/log"
-        - "/opt/aleph/polyglot:/polyglot"
+        - "./build/logs/worker:/var/log"
+        - "./build/archive:/archive"
+        - "./build/incoming:/incoming"
+        - "./build/polyglot:/polyglot"
       environment:
         C_FORCE_ROOT: 'true'
         ALEPH_ELASTICSEARCH_URI: http://elasticsearch:9200/
         ALEPH_DATABASE_URI: postgresql://aleph:aleph@postgres/aleph
-        POLYGLOT_DATA_PATH: /polyglot
-        TESSDATA_PREFIX: /usr/share/tesseract-ocr
         ALEPH_BROKER_URI: amqp://guest:guest@rabbitmq:5672
-        # ALEPH_NEO4J_URI: http://neo4j:neo4j@neo4j/
+        ALEPH_ARCHIVE_PATH: /archive
+        POLYGLOT_DATA_PATH: /polyglot
       env_file:
         - aleph.env
 
   beat:
       build: .
-      command: celery -A aleph.queue beat -s /var/run/celerybeat-schedule
+      command: celery -A aleph.queues beat -s /var/lib/celerybeat-schedule.db --pidfile /var/lib/celery.pid
       links:
         - postgres
         - elasticsearch
+        - rabbitmq
       volumes:
-        - "/opt/aleph/logs/beat:/var/log"
-        - "/opt/aleph/run/beat:/var/run"
-        - "/opt/aleph/polyglot:/polyglot"
-        - "/opt/aleph/archive:/data"
+        - "./build/logs/beat:/var/log"
+        - "./build/data/beat:/var/lib/"
+        - "./build/archive:/archive"
+        - "./build/polyglot:/polyglot"
       environment:
         C_FORCE_ROOT: 'true'
         ALEPH_ELASTICSEARCH_URI: http://elasticsearch:9200/
         ALEPH_DATABASE_URI: postgresql://aleph:aleph@postgres/aleph
         ALEPH_BROKER_URI: amqp://guest:guest@rabbitmq:5672
+        ALEPH_ARCHIVE_PATH: /archive
         POLYGLOT_DATA_PATH: /polyglot
-        # ALEPH_NEO4J_URI: http://neo4j:neo4j@neo4j/
       env_file:
         - aleph.env
 
   web:
-      build: ../aleph-dokku
+      build: .
+      command: gunicorn -w 5 -b 0.0.0.0:8000 --log-level info --log-file /var/log/gunicorn.log aleph.manage:app
       ports:
         - "13376:8000"
       links:
@@ -87,16 +82,14 @@ services:
         - elasticsearch
         - rabbitmq
       volumes:
-        - "/:/host"
-        - "./logs:/var/log"
-        - "../aleph-dokku/code4sa_aleph_config.py:/aleph/code4sa_aleph_config.py"
-        - "../aleph-dokku/css:/aleph/code4sa_css"
-        - "../aleph-dokku/templates:/aleph/code4sa_templates"
-        - "./filestore:/aleph/filestore"
+        - "./build/logs/web:/var/log"
+        - "./build/archive:/archive"
+        - "./build/polyglot:/polyglot"
       environment:
         ALEPH_ELASTICSEARCH_URI: http://elasticsearch:9200/
         ALEPH_DATABASE_URI: postgresql://aleph:aleph@postgres/aleph
         ALEPH_BROKER_URI: amqp://guest:guest@rabbitmq:5672
-        ALEPH_SETTINGS: /aleph/code4sa_aleph_config.py
+        ALEPH_ARCHIVE_PATH: /archive
+        POLYGLOT_DATA_PATH: /polyglot
       env_file:
         - aleph.env

@@ -1,11 +1,9 @@
 import os
 import logging
-
 from werkzeug.exceptions import BadRequest, NotFound
 from flask import Blueprint, redirect, send_file, request
 from apikit import jsonify, Pager, get_limit, get_offset, request_data
 
-from aleph import authz
 from aleph.core import archive, url_for, db
 from aleph.model import Document, Entity, Reference, Collection
 from aleph.logic import update_document
@@ -22,11 +20,11 @@ blueprint = Blueprint('documents_api', __name__)
 
 @blueprint.route('/api/1/documents', methods=['GET'])
 def index():
-    collection_ids = request.args.getlist('collection')
-    collection_ids = authz.collections_intersect(authz.READ, collection_ids)
+    authz = request.authz
+    collections = request.args.getlist('collection')
+    collections = authz.collections_intersect(authz.READ, collections)
     q = Document.all()
-    clause = Collection.id.in_(collection_ids)
-    q = q.filter(Document.collections.any(clause))
+    q = q.filter(Document.collection_id.in_(collections))
     hashes = request.args.getlist('content_hash')
     if len(hashes):
         q = q.filter(Document.content_hash.in_(hashes))
@@ -58,37 +56,13 @@ def view(document_id):
 
 @blueprint.route('/api/1/documents/<int:document_id>', methods=['POST', 'PUT'])
 def update(document_id):
-    document = get_document(document_id)
-    # This is a special requirement for documents, so
-    # they cannot escalate privs:
-    authz.require(authz.collection_write(document.source_collection_id))
+    document = get_document(document_id, action=request.authz.WRITE)
     data = request_data()
-    document.update(data, writeable=authz.collections(authz.WRITE))
+    document.update(data)
     db.session.commit()
     log_event(request, document_id=document.id)
     update_document(document)
     return view(document_id)
-
-
-@blueprint.route('/api/1/documents/<int:document_id>/collections')
-def view_collections(document_id):
-    doc = get_document(document_id)
-    return jsonify(doc.collection_ids)
-
-
-@blueprint.route('/api/1/documents/<int:document_id>/collections',
-                 methods=['POST', 'PUT'])
-def update_collections(document_id):
-    document = get_document(document_id)
-    data = request_data()
-    if not isinstance(data, list) or \
-            False in [isinstance(d, int) for d in data]:
-        raise BadRequest()
-    document.update_collections(data, writeable=authz.collections(authz.WRITE))
-    db.session.commit()
-    log_event(request, document_id=document.id)
-    update_document(document)
-    return view_collections(document_id)
 
 
 @blueprint.route('/api/1/documents/<int:document_id>/references')
@@ -99,8 +73,7 @@ def references(document_id):
     q = q.filter(Reference.origin == 'regex')
     q = q.join(Entity)
     q = q.filter(Entity.state == Entity.STATE_ACTIVE)
-    clause = Collection.id.in_(authz.collections(authz.READ))
-    q = q.filter(Entity.collections.any(clause))
+    q = q.filter(Entity.collection_id.in_(request.authz.collections_read))
     q = q.order_by(Reference.weight.desc())
     return jsonify(Pager(q, document_id=document_id))
 

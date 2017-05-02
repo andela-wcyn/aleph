@@ -1,3 +1,5 @@
+import aleph from '../aleph';
+
 aleph.directive('searchBox', ['$location', '$q', '$route', '$http', '$rootScope',
     function($location, $q, $route, $http, $rootScope) {
   return {
@@ -16,7 +18,7 @@ aleph.directive('searchBox', ['$location', '$q', '$route', '$http', '$rootScope'
       scope.suggestEntities = function(prefix) {
         var dfd = $q.defer();
         var opts = {
-          params: {'prefix': prefix, 'min_count': 2},
+          params: {'prefix': prefix, 'min_count': 1},
           ignoreLoadingBar: true,
           cache: true
         };
@@ -28,7 +30,7 @@ aleph.directive('searchBox', ['$location', '$q', '$route', '$http', '$rootScope'
 
       scope.acceptSuggestion = function($item) {
         scope.query.state.q = '';
-        scope.query.toggle('entity', $item.id);
+        scope.query.toggle('filter:entities.id', $item.id);
       }
 
       scope.submitSearch = function(form) {

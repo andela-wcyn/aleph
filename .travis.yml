@@ -2,11 +2,11 @@ language: python
 cache:
   - apt
   - pip
+  - npm
 python:
   - "2.7"
 services:
   - postgresql
-  - elasticsearch
   - rabbitmq
 addons:
   postgresql: "9.4"
@@ -18,31 +18,41 @@ addons:
       - poppler-utils
       - libreoffice
       - djvulibre-bin
+      - oracle-java8-set-default
 env:
   global:
-    - ALEPH_TEST_SETTINGS=$TRAVIS_BUILD_DIR/test_settings.py
+    - NODE_VERSION=6.9.2
+    - ALEPH_SETTINGS=$TRAVIS_BUILD_DIR/contrib/docker_settings.py
+    - ALEPH_DATABASE_NAME=aleph
+    - ALEPH_DATABASE_URI=postgresql://localhost/$ALEPH_DATABASE_NAME
     - WKHTMLTOPDF_BIN=$TRAVIS_BUILD_DIR/wkhtmltox/bin/wkhtmltopdf
     - OAUTH_KEY=fake
     - OAUTH_SECRET=fake
 before_install:
   - sudo apt-get -qq update
   - sudo apt-get install -y tesseract-ocr-eng readpst
+  - curl -O https://download.elastic.co/elasticsearch/release/org/elasticsearch/distribution/deb/elasticsearch/2.3.0/elasticsearch-2.3.0.deb && sudo dpkg -i --force-confnew elasticsearch-2.3.0.deb && sudo service elasticsearch start
   - wget --quiet -O /tmp/wkhtmltox.tar.xv http://download.gna.org/wkhtmltopdf/0.12/0.12.3/wkhtmltox-0.12.3_linux-generic-amd64.tar.xz
   - tar -xf /tmp/wkhtmltox.tar.xv -C $TRAVIS_BUILD_DIR
 install:
-  - gem install sass
   - pip install --upgrade setuptools pip
   - pip install -r requirements.txt
   - pip install -e .
   - pip install psycopg2 coveralls
-  - npm install -g bower uglifyjs
-  - bower install
+  - nvm install $NODE_VERSION
+  - nvm use $NODE_VERSION
+  - npm install .
 before_script:
-  - psql -c 'create database aleph_test;' -U postgres
-  - cp $TRAVIS_BUILD_DIR/test_settings.py.tmpl $TRAVIS_BUILD_DIR/test_settings.py
+  - sleep 10
+  - psql -c "create database ${ALEPH_DATABASE_NAME}_test;" -U postgres
+  - elasticsearch --version
   - nosetests --version
   - psql --version
+  - nvm use $NODE_VERSION
+  - node --version
 script:
+  - nvm use $NODE_VERSION
+  # - node_modules/webpack/bin/webpack.js --env.prod
   - nosetests --with-coverage --cover-package=aleph
 after_success:
   - coveralls

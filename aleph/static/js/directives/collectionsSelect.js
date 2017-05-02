@@ -1,8 +1,10 @@
+import aleph from '../aleph';
+
 aleph.directive('collectionsSelect', ['$http', '$q', 'Metadata', 'Collection',
     function($http, $q, Metadata, Collection) {
   return {
     restrict: 'E',
-    transclude: true,
+    transclude: false,
     scope: {
       'setCollection': '&setCollection',
       'collection': '=',
@@ -52,7 +54,7 @@ aleph.directive('collectionsSelect', ['$http', '$q', 'Metadata', 'Collection',
                 scope.createCollection = false;
                 scope.collection = res.data;
                 Metadata.flush().then(function() {
-                  dfd.resolve(res.data);  
+                  dfd.resolve(res.data);
                 });
               }, function(err) {
                 dfd.reject();

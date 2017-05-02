@@ -1,19 +1,83 @@
-var aleph = angular.module('aleph', ['ngRoute', 'ngAnimate', 'ngSanitize', 'ui.bootstrap',
-                                     'ui.select', 'angular-loading-bar', 'ngFileUpload',
-                                     'truncate', 'pdf', 'angulartics', 'angulartics.google.analytics']);
+// Expose some API
+require('expose-loader?$!expose-loader?jQuery!jquery');
+require('expose-loader?angular!angular');
+require('expose-loader?PDFJS!angular-pdf/bower_components/pdfjs-dist/build/pdf.combined.js');
 
-aleph.config(['$routeProvider', '$locationProvider', '$compileProvider', 'cfpLoadingBarProvider', 'uiSelectConfig',
-    function($routeProvider, $locationProvider, $compileProvider, cfpLoadingBarProvider, uiSelectConfig) {
+// These modules do not return anything
+require('ui-select/dist/select.js');
+require('angular-pdf');
+require('angular-truncate');
 
-  $routeProvider.when('/search', {
+var aleph = angular.module('aleph', [
+  require('angular-route'),
+  require('angular-animate'),
+  require('angular-sanitize'),
+  require('angular-ui-bootstrap'),
+  require('angular-loading-bar'),
+  require('ng-file-upload'),
+  'ui.select',
+  'truncate',
+  'pdf'
+]);
+
+import {
+  loadDocumentsSearch, loadDocument, loadPeek
+} from './loaders/loadDocuments';
+import loadMetadata from './loaders/loadMetadata';
+import loadAlertsIndex from './loaders/loadAlertsIndex';
+import loadTabular from './loaders/loadTabular.js';
+import loadDatasets from './loaders/loadDatasets';
+import loadPermissions from './loaders/loadPermissions';
+import loadStatistics from './loaders/loadHome';
+import {loadText, loadPagesQuery} from './loaders/loadText';
+import loadCrawlers from './loaders/loadCrawlers';
+import {
+  loadEntitiesSearch, loadEntity, loadSimilarEntities, loadEntityLinks,
+  loadEntityDocuments
+} from './loaders/loadEntities';
+import {
+  loadProjectCollections, loadSourceCollections, loadCollection,
+  loadCollectionDocuments, loadCollectionEntities, loadCollectionLeads,
+  loadCollectionDeep
+} from './loaders/loadCollections';
+
+aleph.config([
+  '$routeProvider', '$locationProvider', '$compileProvider',
+  'cfpLoadingBarProvider', 'uiSelectConfig',
+  function(
+    $routeProvider, $locationProvider, $compileProvider, cfpLoadingBarProvider,
+    uiSelectConfig
+  ){
+
+  $routeProvider.when('/documents', {
     templateUrl: 'templates/documents/search.html',
-    controller: 'SearchCtrl',
+    controller: 'DocumentsSearchCtrl',
     reloadOnSearch: false,
     resolve: {
-      'data': loadSearch,
+      'data': loadDocumentsSearch,
       'peek': loadPeek,
       'metadata': loadMetadata,
       'alerts': loadAlertsIndex
+    }
+  });
+
+  $routeProvider.when('/documents/sources', {
+    templateUrl: 'templates/documents/sources.html',
+    controller: 'DocumentsSourcesCtrl',
+    reloadOnSearch: false,
+    resolve: {
+      'collections': loadSourceCollections,
+      'metadata': loadMetadata
+    }
+  });
+
+  $routeProvider.when('/documents/:document_id', {
+    templateUrl: 'templates/documents/view.html',
+    controller: 'DocumentsViewCtrl',
+    reloadOnSearch: false,
+    resolve: {
+      'doc': loadDocument,
+      'metadata': loadMetadata
     }
   });
 
@@ -38,12 +102,44 @@ aleph.config(['$routeProvider', '$locationProvider', '$compileProvider', 'cfpLoa
     }
   });
 
+  $routeProvider.when('/entities', {
+    templateUrl: 'templates/entities/search.html',
+    controller: 'EntitiesSearchCtrl',
+    reloadOnSearch: false,
+    resolve: {
+      'data': loadEntitiesSearch,
+      'metadata': loadMetadata
+    }
+  });
+
+  $routeProvider.when('/datasets', {
+    templateUrl: 'templates/datasets/index.html',
+    controller: 'DatasetsIndexCtrl',
+    reloadOnSearch: false,
+    resolve: {
+      'datasets': loadDatasets
+    }
+  });
+
+  $routeProvider.when('/entities/:entity_id', {
+    templateUrl: 'templates/entities/view.html',
+    controller: 'EntitiesViewCtrl',
+    reloadOnSearch: false,
+    resolve: {
+      'entity': loadEntity,
+      'links': loadEntityLinks,
+      'similar': loadSimilarEntities,
+      'documents': loadEntityDocuments,
+      'metadata': loadMetadata
+    }
+  });
+
   $routeProvider.when('/collections', {
     templateUrl: 'templates/collections/index.html',
     controller: 'CollectionsIndexCtrl',
     reloadOnSearch: true,
     resolve: {
-      'collections': loadCollections,
+      'collections': loadProjectCollections,
       'metadata': loadMetadata
     }
   });
@@ -56,17 +152,6 @@ aleph.config(['$routeProvider', '$locationProvider', '$compileProvider', 'cfpLoa
       'collection': loadCollection,
       'data': loadCollectionDocuments,
       'metadata': loadMetadata
-    }
-  });
-
-  $routeProvider.when('/collections/:collection_id/states', {
-    templateUrl: 'templates/collections/states.html',
-    controller: 'CollectionsCrawlersStatesCtrl',
-    reloadOnSearch: true,
-    resolve: {
-      'collection': loadCollection,
-      'metadata': loadMetadata,
-      'states': loadCrawlerStates
     }
   });
 
@@ -102,14 +187,25 @@ aleph.config(['$routeProvider', '$locationProvider', '$compileProvider', 'cfpLoa
     }
   });
 
+  $routeProvider.when('/collections/:collection_id/leads', {
+    templateUrl: 'templates/collections/leads.html',
+    controller: 'CollectionsLeadsCtrl',
+    reloadOnSearch: false,
+    resolve: {
+      'collection': loadCollection,
+      'leads': loadCollectionLeads,
+      'metadata': loadMetadata
+    }
+  });
+
   $routeProvider.when('/collections/:collection_id/settings', {
     templateUrl: 'templates/collections/edit.html',
     controller: 'CollectionsEditCtrl',
     reloadOnSearch: false,
     resolve: {
-      'collection': loadCollection,
+      'collection': loadCollectionDeep,
       'metadata': loadMetadata,
-      'roles': loadRoles
+      'permissions': loadPermissions
     }
   });
 
@@ -142,16 +238,21 @@ aleph.config(['$routeProvider', '$locationProvider', '$compileProvider', 'cfpLoa
     reloadOnSearch: false,
     resolve: {
       'statistics': loadStatistics,
-      'facets': loadCollectionFacets,
-      'collections': loadUserCollections,
       'metadata': loadMetadata
     }
+  });
+
+  $routeProvider.when('/signup/:code', {
+    templateUrl: 'templates/signup.html',
+    controller: 'SignupCtrl'
   });
 
   $locationProvider.html5Mode(true);
   $compileProvider.debugInfoEnabled(false);
   cfpLoadingBarProvider.includeSpinner = false;
-  cfpLoadingBarProvider.latencyThreshold = 200;
+  cfpLoadingBarProvider.latencyThreshold = 100;
 
   uiSelectConfig.theme = 'bootstrap';
 }]);
+
+export default aleph;

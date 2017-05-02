@@ -1,6 +1,15 @@
+import moment from 'moment';
+import aleph from './aleph';
+
 aleph.filter('date', function() {
   return function(val) {
     return moment(val).format('YYYY-MM-DD');
+  };
+});
+
+aleph.filter('percentage', function() {
+  return function(val) {
+    return parseInt(val * 100, 10);
   };
 });
 
@@ -16,6 +25,10 @@ aleph.filter('calendar', function() {
   return function(val) {
     return moment(val).calendar();
   };
+});
+
+aleph.filter('urlencode', function() {
+  return window.encodeURIComponent;
 });
 
 
@@ -56,34 +69,17 @@ aleph.filter('language', ['Metadata', function(Metadata) {
 }]);
 
 
-aleph.filter('schemaPlural', ['Metadata', function(Metadata) {
+aleph.filter('schemaLabel', ['Metadata', function(Metadata) {
   var schemata = {};
 
   Metadata.get().then(function(md) {
     schemata = md.schemata;
   });
 
-  return function(schema_id) {
-    if (schemata[schema_id]) {
-      return schemata[schema_id].plural;
-    }
-    return schema_id;
+  return function(schema, plural) {
+    var obj = schemata[schema];
+    if (!obj) return schema;
+    return plural ? obj.plural : obj.label;
   };
-}]);
 
-
-aleph.filter('collectionCategory', ['Metadata', function(Metadata) {
-  var categories = {};
-
-  Metadata.get().then(function(md) {
-    categories = md.categories;
-  });
-
-  return function(code) {
-    if (!code) {
-      return 'Unclassified';
-    }
-    var label = categories[code];
-    return label || code;
-  };
 }]);

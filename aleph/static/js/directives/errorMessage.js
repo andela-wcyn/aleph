@@ -1,3 +1,4 @@
+import aleph from '../aleph';
 
 aleph.directive('errorMessage', ['$route', '$location', '$rootScope', function($route, $location, $rootScope) {
   return {
@@ -10,10 +11,15 @@ aleph.directive('errorMessage', ['$route', '$location', '$rootScope', function($
     link: function (scope, element, attrs) {
       scope.mode = 'other';
 
+      scope.login = function() {
+        $rootScope.triggerLogin();
+      };
+
       scope.$watch('error', function(error) {
         if (!error) {
           return;
         }
+
         scope.message = "He's dead, Jim.";
         if (error.data && error.data.message) {
           scope.message = error.data.message;

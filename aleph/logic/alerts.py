@@ -1,11 +1,12 @@
 import logging
 from urllib import quote_plus
-from flask import request, render_template, current_app
+from flask import render_template, current_app
 
+from aleph.authz import Authz
 from aleph.core import app_title, app_url, db, celery
 from aleph.model import Role, Alert, Collection
 from aleph.notify import notify_role
-from aleph.search.alerts import alert_query
+from aleph.search import QueryState, documents_query
 
 log = logging.getLogger(__name__)
 
@@ -16,22 +17,17 @@ def check_alerts():
     for role_id, in Role.notifiable():
         with current_app.test_request_context('/'):
             role = Role.by_id(role_id)
-            request.auth_role = role
-            request.logged_in = True
-            # FIXME: can't re-gain access to implicit oauth rules.
-            # -> https://github.com/pudo/aleph/issues/14
-            request.auth_roles = [Role.system(Role.SYSTEM_USER),
-                                  Role.system(Role.SYSTEM_GUEST),
-                                  role.id]
-            check_role_alerts(role)
+            authz = Authz(role=role)
+            check_role_alerts(authz)
 
 
 def format_results(alert, results):
     # used to activate highlighting in results pages:
-    qs = 'dq=%s' % quote_plus(alert.query_text or '')
+    dq = alert.query_text or ''
+    qs = 'dq=%s' % quote_plus(dq.encode('utf-8'))
     output = []
     for result in results['results']:
-        collection_id = result.pop('source_collection_id', None)
+        collection_id = result.pop('collection_id', None)
         if not collection_id:
             continue
         result['collection'] = Collection.by_id(collection_id)
@@ -50,25 +46,33 @@ def format_results(alert, results):
     return output
 
 
-def check_role_alerts(role):
-    alerts = Alert.by_role(role).all()
+def check_role_alerts(authz):
+    alerts = Alert.by_role(authz.role).all()
     if not len(alerts):
         return
-    log.info('Alerting %r, %d alerts...', role, len(alerts))
+    log.info('Alerting %r, %d alerts...', authz.role, len(alerts))
     for alert in alerts:
-        results = alert_query(alert)
+        args = {
+            'q': alert.query_text,
+            'filter:entities.id': alert.entity_id,
+            'limit': 50
+        }
+        state = QueryState(args, authz)
+        results = documents_query(state, since=alert.notified_at)
         if results['total'] == 0:
             continue
         log.info('Found %d new results for: %r', results['total'], alert.label)
         alert.update()
         try:
             subject = '%s (%s new results)' % (alert.label, results['total'])
-            html = render_template('email/alert.html', alert=alert, role=role,
+            html = render_template('email/alert.html',
+                                   alert=alert,
+                                   role=authz.role,
                                    total=results.get('total'),
                                    results=format_results(alert, results),
                                    app_title=app_title,
                                    app_url=app_url)
-            notify_role(role, subject, html)
+            notify_role(authz.role, subject, html)
         except Exception as ex:
             log.exception(ex)
     db.session.commit()

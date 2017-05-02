@@ -1,9 +1,11 @@
 import logging
+from elasticsearch.exceptions import NotFoundError
 
 from aleph.core import es, es_index
-from aleph.index.mapping import TYPE_DOCUMENT, TYPE_RECORD, TYPE_ENTITY
+from aleph.index.mapping import TYPE_DOCUMENT, TYPE_RECORD
+from aleph.index.mapping import TYPE_ENTITY, TYPE_LINK, TYPE_LEAD
 from aleph.index.mapping import DOCUMENT_MAPPING, RECORD_MAPPING
-from aleph.index.mapping import ENTITY_MAPPING
+from aleph.index.mapping import ENTITY_MAPPING, LINK_MAPPING, LEAD_MAPPING
 
 log = logging.getLogger(__name__)
 
@@ -14,25 +16,26 @@ def init_search():
         'mappings': {
             TYPE_DOCUMENT: DOCUMENT_MAPPING,
             TYPE_RECORD: RECORD_MAPPING,
-            TYPE_ENTITY: ENTITY_MAPPING
+            TYPE_ENTITY: ENTITY_MAPPING,
+            TYPE_LINK: LINK_MAPPING,
+            TYPE_LEAD: LEAD_MAPPING
         }
-    }, ignore=[400, 404])
+    }, ignore=[404])
     es.indices.open(index=es_index, ignore=[400, 404])
 
 
 def upgrade_search():
     """Add any missing properties to the index mappings."""
-    es.indices.put_mapping(index=es_index, body=DOCUMENT_MAPPING,
-                           doc_type=TYPE_DOCUMENT)
-    es.indices.put_mapping(index=es_index, body=RECORD_MAPPING,
-                           doc_type=TYPE_RECORD)
-    es.indices.put_mapping(index=es_index, body=ENTITY_MAPPING,
-                           doc_type=TYPE_ENTITY)
-
-
-def optimize_search():
-    """Run a full index restructure. May take a while."""
-    es.indices.optimize(index=es_index)
+    try:
+        es.indices.put_mapping(index=es_index, body=DOCUMENT_MAPPING, doc_type=TYPE_DOCUMENT)  # noqa
+        es.indices.put_mapping(index=es_index, body=RECORD_MAPPING, doc_type=TYPE_RECORD)  # noqa
+        es.indices.put_mapping(index=es_index, body=ENTITY_MAPPING, doc_type=TYPE_ENTITY)  # noqa
+        es.indices.put_mapping(index=es_index, body=LINK_MAPPING, doc_type=TYPE_LINK)  # noqa
+        es.indices.put_mapping(index=es_index, body=LEAD_MAPPING, doc_type=TYPE_LEAD)  # noqa
+        log.info("Upgraded ElasticSearch index mapping.")
+    except NotFoundError:
+        log.info("Cannot upgrade search index, trying to create it...")
+        init_search()
 
 
 def delete_index():

@@ -3,9 +3,10 @@ import shutil
 from tempfile import mkdtemp
 from flask_testing import TestCase as FlaskTestCase
 from flask_fixtures import loaders, load_fixtures
+from faker import Factory
 
 from aleph.model import Role, Document, create_system_roles
-from aleph.index import delete_index, init_search, optimize_search
+from aleph.index import delete_index, init_search, flush_index
 from aleph.analyze import analyze_document
 from aleph.logic import reindex_entities
 from aleph.core import db, create_app
@@ -17,9 +18,13 @@ FIXTURES = os.path.join(os.path.dirname(__file__), 'fixtures')
 
 class TestCase(FlaskTestCase):
 
+    # Expose faker since it should be easy to use
+    fake = Factory.create()
+
     def create_app(self):
         self.temp_dir = mkdtemp()
         oauth.remote_apps = {}
+        app_name = 'aleph_test_name'
         app = create_app({
             'DEBUG': True,
             'TESTING': True,
@@ -27,7 +32,7 @@ class TestCase(FlaskTestCase):
             'SECRET_KEY': 'batman',
             'ARCHIVE_TYPE': 'file',
             'ARCHIVE_PATH': self.temp_dir,
-            'APP_NAME': 'aleph_test_name',
+            'APP_NAME': app_name,
             'PRESERVE_CONTEXT_ON_EXCEPTION': False,
             'CELERY_ALWAYS_EAGER': True
         })
@@ -46,8 +51,8 @@ class TestCase(FlaskTestCase):
         role = self.create_user(foreign_id=foreign_id, name=name, email=email,
                                 is_admin=is_admin)
         with self.client.session_transaction() as sess:
-            sess['roles'] = [Role.system(Role.SYSTEM_GUEST),
-                             Role.system(Role.SYSTEM_USER), role.id]
+            sess['roles'] = [Role.load_id(Role.SYSTEM_GUEST),
+                             Role.load_id(Role.SYSTEM_USER), role.id]
             sess['user'] = role.id
         return role
 
@@ -62,7 +67,7 @@ class TestCase(FlaskTestCase):
         if process_documents:
             for doc in Document.all():
                 analyze_document(doc)
-            optimize_search()
+        flush_index()
 
     def setUp(self):
         try:

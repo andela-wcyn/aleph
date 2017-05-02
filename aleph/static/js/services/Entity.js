@@ -1,36 +1,71 @@
+import aleph from '../aleph';
+
 aleph.factory('Entity', ['$uibModal', '$q', '$http', 'Alert', 'Metadata', 'Query',
     function($uibModal, $q, $http, Alert, Metadata, Query) {
 
   var getById = function(id) {
     var dfd = $q.defer(),
         url = '/api/1/entities/' + id;
-    $http.get(url).then(function(res) {
-      dfd.resolve(res.data);
+    Metadata.get().then(function(metadata) {
+      $http.get(url).then(function(res) {
+        var entity = metadata.bindSchema(res.data);
+        dfd.resolve(entity);
+      }, function(err) {
+        dfd.reject(err);
+      });
     }, function(err) {
       dfd.reject(err);
     });
+
     return dfd.promise;
   }
 
-  return {
-    searchCollection: function(collection_id) {
-      var dfd = $q.defer();
-      var query = Query.parse(),
-          state = angular.copy(query.state);
-      state['limit'] = 20;
-      state['filter:collection_id'] = collection_id;
-      state['doc_counts'] = 'true';
-      state['facet'] = ['jurisdiction_code', '$schema'];
-      state['offset'] = state.offset || 0;
-      $http.get('/api/1/entities', {params: state}).then(function(res) {
+  var searchQuery = function(url, query, state) {
+    var dfd = $q.defer();
+    state['offset'] = state.offset || 0;
+    Metadata.get().then(function(metadata) {
+      $http.get(url, {params: state}).then(function(res) {
+        for (var i in res.data.results) {
+          metadata.bindSchema(res.data.results[i]);
+        }
         dfd.resolve({
           'query': query,
           'result': res.data
         });
       }, function(err) {
-        dfd.reject(err);  
+        dfd.reject(err);
       });
-      return dfd.promise;
+    }, function(err) {
+      dfd.reject(err);
+    });
+
+    return dfd.promise;
+  }
+
+  return {
+    searchCollection: function(collection_id) {
+      var query = Query.parse(),
+          state = angular.copy(query.state);
+      state['limit'] = 20;
+      state['filter:collection_id'] = collection_id;
+      state['doc_counts'] = 'true';
+      state['facet'] = ['countries', 'schemata'];
+      return searchQuery('/api/1/entities', query, state);
+    },
+    search: function() {
+      var query = Query.parse(),
+          state = angular.copy(query.state);
+      state['limit'] = 30;
+      state['facet'] = ['countries', 'schemata', 'dataset', 'collections'];
+      return searchQuery('/api/1/entities', query, state);
+    },
+    searchSimilar: function(entityId, prefix) {
+      var query = Query.parse(prefix),
+          state = angular.copy(query.state);
+      state['limit'] = 5;
+      state['facet'] = [];
+      state['strict'] = state.strict || true;
+      return searchQuery('/api/1/entities/' + entityId + '/similar', query, state);
     },
     create: function(entity) {
       var instance = $uibModal.open({

@@ -3,14 +3,16 @@ import six
 import cgi
 import mimetypes
 from collections import Mapping
-from flanker.addresslib import address
+from urllib import unquote
+from hashlib import sha1
 from urlparse import urlparse
+from dalet import is_country_code, is_language_code
+from dalet import parse_email, parse_country, parse_url
+from dalet import parse_domain, parse_date
 
 from aleph.text import slugify, string_value
 from aleph.util import make_filename
 from aleph.metadata.tabular import Tabular
-from aleph.metadata.parsers import parse_date, parse_domain, parse_url
-from aleph.metadata.reference import is_country_code, is_language_code
 from aleph.metadata.base import MetadataFactory, Field
 
 
@@ -37,7 +39,7 @@ class Metadata(object):
 
     __metaclass__ = MetadataFactory
 
-    content_hash = Field(protected=True)
+    _content_hash = Field('content_hash', protected=True)
     crawler = Field(protected=True)
     crawler_run = Field(protected=True)
     _foreign_id = Field('foreign_id', protected=True)
@@ -82,6 +84,17 @@ class Metadata(object):
         return True
 
     @property
+    def content_hash(self):
+        if self._content_hash is not None:
+            return self._content_hash
+        if self._foreign_id is not None:
+            return sha1(self.foreign_id).hexdigest()
+
+    @content_hash.setter
+    def content_hash(self, content_hash):
+        self._content_hash = string_value(content_hash)
+
+    @property
     def parent(self):
         if self._parent is not None:
             return Metadata.from_data(self._parent)
@@ -94,29 +107,37 @@ class Metadata(object):
 
     @property
     def title(self):
-        return self._title or self._file_name or self.file_name
+        return self._title or self.file_title
 
     @title.setter
     def title(self, title):
         self._title = string_value(title)
 
     @property
-    def file_name(self):
-        file_name = self._file_name
+    def file_title(self):
+        file_title = self._file_name
 
         # derive file name from headers
-        if file_name is None and 'content_disposition' in self.headers:
-            _, attrs = cgi.parse_header(self.headers['content_disposition'])
-            file_name = string_value(attrs.get('filename'))
+        disposition = self.headers.get('content_disposition')
+        if file_title is None and disposition is not None:
+            _, attrs = cgi.parse_header(disposition)
+            filename = attrs.get('filename') or ''
+            file_title = string_value(unquote(filename))
 
-        if file_name is None and self.source_path:
-            file_name = os.path.basename(self.source_path)
+        if file_title is None and self.source_path:
+            file_title = os.path.basename(self.source_path) or ''
+            file_title = string_value(file_title)
 
-        if file_name is None and self.source_url:
+        if file_title is None and self.source_url:
             parsed = urlparse(self.source_url)
-            file_name = os.path.basename(parsed.path)
+            file_title = os.path.basename(parsed.path) or ''
+            file_title = string_value(unquote(file_title))
 
-        return make_filename(file_name) or 'data'
+        return file_title
+
+    @property
+    def file_name(self):
+        return make_filename(self.file_title) or 'data'
 
     @file_name.setter
     def file_name(self, file_name):
@@ -151,10 +172,9 @@ class Metadata(object):
             self.add_country(country)
 
     def add_country(self, country):
-        country = string_value(country)
+        country = parse_country(country)
         if country is None:
             return
-        country = country.lower()
         if is_country_code(country) and country not in self._countries:
             self._countries.append(country)
 
@@ -184,12 +204,10 @@ class Metadata(object):
             self.add_email(email)
 
     def add_email(self, email):
-        parsed = address.parse(email)
-        if parsed is None:
-            return
-        self.add_domain(parsed.hostname)
-        if parsed.address not in self._emails:
-            self._emails.append(parsed.address)
+        email = parse_email(email)
+        if email is not None and email not in self._emails:
+            self._emails.append(email)
+            self.add_domain(email)
 
     @property
     def urls(self):
@@ -205,7 +223,7 @@ class Metadata(object):
         url = parse_url(url)
         if url is not None and url not in self._urls:
             self._urls.append(url)
-        self.add_domain(url)
+            self.add_domain(url)
 
     @property
     def domains(self):
@@ -263,7 +281,7 @@ class Metadata(object):
 
     @property
     def foreign_id(self):
-        return self._foreign_id or self.source_url or self.source_path
+        return self._foreign_id
 
     @foreign_id.setter
     def foreign_id(self, foreign_id):
@@ -294,7 +312,7 @@ class Metadata(object):
             mime_type, _ = mimetypes.guess_type(self.file_name)
 
         # derive mime type from headers
-        if mime_type is None and 'content_type' in self.headers:
+        if mime_type is None and self.headers.get('content_type') is not None:
             mime_type, _ = cgi.parse_header(self.headers['content_type'])
 
         if mime_type != 'application/octet-stream':
@@ -312,7 +330,12 @@ class Metadata(object):
 
     @headers.setter
     def headers(self, headers):
-        self._headers = dict(headers) if isinstance(headers, Mapping) else None
+        self._headers = {}
+        if not isinstance(headers, Mapping):
+            return
+        for key, value in headers.items():
+            key = slugify(key, sep='_')
+            self._headers[key] = string_value(value)
 
     @property
     def is_pdf(self):

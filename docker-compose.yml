@@ -1,6 +1,12 @@
 version: "2"
 
 services:
+  resolvable:
+    image: mgood/resolvable
+    volumes:
+      - "/var/run/docker.sock:/tmp/docker.sock"
+      - "/etc/resolv.conf:/tmp/resolv.conf"
+
   postgres:
     image: postgres:9.4
     volumes:
@@ -29,73 +35,81 @@ services:
   # neo4j:
   #   image: neo4j:3.0
   #   volumes:
-  #     - "./build/data/neo4j:/data"
+  #     - "/opt/aleph/data/neo4j:/data"
   #   ports:
   #     - 7474
   #     - 7687
+    volumes:
+      - "./build/data/rabbitmq:/var/lib/rabbitmq"
+      - "./build/logs/rabbitmq:/var/log"
 
   worker:
-      build: .
-      command: celery -A aleph.queue worker -c 10 -l INFO --logfile=/var/log/celery.log
+      image: alephdata/aleph:latest
+      command: make worker
       links:
         - postgres
         - elasticsearch
-        # - neo4j
+        - rabbitmq
       volumes:
         - "/:/host"
         - "./build/archive:/data"
         - "./build/logs/worker:/var/log"
         - "./build/polyglot:/polyglot"
+        - "./:/aleph"
+
       environment:
         C_FORCE_ROOT: 'true'
         ALEPH_ELASTICSEARCH_URI: http://elasticsearch:9200/
         ALEPH_DATABASE_URI: postgresql://aleph:aleph@postgres/aleph
-        POLYGLOT_DATA_PATH: /polyglot
-        TESSDATA_PREFIX: /usr/share/tesseract-ocr
         ALEPH_BROKER_URI: amqp://guest:guest@rabbitmq:5672
-        # ALEPH_NEO4J_URI: http://neo4j:neo4j@neo4j/
+        POLYGLOT_DATA_PATH: /polyglot
       env_file:
         - aleph.env
 
   beat:
-      build: .
-      command: celery -A aleph.queue beat -s /var/run/celerybeat-schedule
+      image: alephdata/aleph:latest
+      command: make beat
       links:
         - postgres
         - elasticsearch
+        - rabbitmq
       volumes:
         - "./build/logs/beat:/var/log"
         - "./build/run/beat:/var/run"
         - "./build/polyglot:/polyglot"
         - "./build/archive:/data"
+        - "./build/polyglot:/polyglot"
+        - "./:/aleph"
+
       environment:
         C_FORCE_ROOT: 'true'
         ALEPH_ELASTICSEARCH_URI: http://elasticsearch:9200/
         ALEPH_DATABASE_URI: postgresql://aleph:aleph@postgres/aleph
         ALEPH_BROKER_URI: amqp://guest:guest@rabbitmq:5672
         POLYGLOT_DATA_PATH: /polyglot
-        # ALEPH_NEO4J_URI: http://neo4j:neo4j@neo4j/
       env_file:
         - aleph.env
 
-  web:
-      build: .
-      command: gunicorn -w 5 -b 0.0.0.0:8000 --log-level info --log-file /var/log/gunicorn.log aleph.manage:app
+  app:
+      image: alephdata/aleph:latest
+      command: make web
       ports:
         - "13376:8000"
       links:
         - postgres
         - elasticsearch
-        # - neo4j
+        - rabbitmq
       volumes:
         - "./build/logs/web:/var/log"
         - "./build/archive:/data"
         - "./build/polyglot:/polyglot"
+        - "./:/aleph"
+
       environment:
+        C_FORCE_ROOT: 'true'
         ALEPH_ELASTICSEARCH_URI: http://elasticsearch:9200/
         ALEPH_DATABASE_URI: postgresql://aleph:aleph@postgres/aleph
         ALEPH_BROKER_URI: amqp://guest:guest@rabbitmq:5672
         POLYGLOT_DATA_PATH: /polyglot
-        # ALEPH_NEO4J_URI: http://neo4j:neo4j@neo4j/
       env_file:
         - aleph.env

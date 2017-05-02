@@ -1,20 +1,25 @@
+import aleph from '../aleph';
 
-aleph.controller('HomeCtrl', ['$scope', '$location', '$route', 'Collection', 'Authz', 'Role', 'Title', 'statistics', 'facets', 'collections', 'metadata',
-    function($scope, $location, $route, Collection, Authz, Role, Title, statistics, facets, collections, metadata) {
+aleph.controller('HomeCtrl', ['$scope', '$location', '$route', 'Collection', 'Authz', 'Role', 'Title', 'statistics', 'metadata',
+    function($scope, $location, $route, Collection, Authz, Role, Title, statistics, metadata) {
 
   $scope.statistics = statistics;
-  $scope.facets = facets;
-  $scope.collections = collections;
   $scope.session = metadata.session;
   $scope.metadata = metadata;
-  $scope.query = {q: ''};
+  $scope.entitiesQuery = {q: ''};
+  $scope.documentsQuery = {q: ''};
   $scope.authz = Authz;
 
   Title.set("Welcome");
 
-  $scope.submitSearch = function(form) {
-    $location.path('/search');
-    $location.search({q: $scope.query.q});
+  $scope.searchDocuments = function(form) {
+    $location.path('/documents');
+    $location.search({q: $scope.documentsQuery.q});
+  };
+
+  $scope.searchEntities = function(form) {
+    $location.path('/entities');
+    $location.search({q: $scope.entitiesQuery.q});
   };
 
   $scope.createCollection = function($event) {
