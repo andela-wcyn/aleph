@@ -28,7 +28,7 @@ class HtmlIngestor(DocumentIngestor):
             args = [wkhtmltopdf, '--disable-javascript', '--no-outline',
                     '--no-images', '--lowquality', '--quiet',
                     '--disable-forms', '--disable-local-file-access',
-                    '--load-error-handling', 'skip',
+                    '--load-error-handling', 'skip', '--encoding', 'utf-8',
                     html_path, out_path]
             subprocess.call(args)
             if not os.path.isfile(out_path):
