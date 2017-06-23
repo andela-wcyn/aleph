@@ -72,7 +72,8 @@ def metadata():
                         .replace("https://", ""),
             'nationality': get_config('NATIONALITY'),
             'start_year': get_config('GAZETTES_START_YEAR'),
-            'end_year': get_config('GAZETTES_END_YEAR')
+            'end_year': get_config('GAZETTES_END_YEAR'),
+            'countries': get_config('GAZETTES_COUNTRIES')
         },
         'fields': Metadata.facets(),
         'categories': get_config('COLLECTION_CATEGORIES', {}),

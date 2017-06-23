@@ -72,6 +72,7 @@ NATIONALITY = env.get('NATIONALITY', 'Kenyan')
 
 GAZETTES_START_YEAR = env.get('ALEPH_GAZETTES_START_YEAR', '1906')
 GAZETTES_END_YEAR = env.get('ALEPH_GAZETTES_END_YEAR', '2017')
+GAZETTES_COUNTRIES = env.get('ALEPH_GAZETTES_COUNTRIES')
 
 
 ###############################################################################
