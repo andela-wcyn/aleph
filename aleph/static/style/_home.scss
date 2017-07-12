@@ -1,12 +1,19 @@
+$break-md: 991px;
+$maroon: #982022;
+$light-maroon: #a13436;
+$grey: #3a4953;
+$light-grey: #ededea;
+$darker-grey: #213c4f;
+
 .jumbotron {
     margin-top: -20px;
     min-height: 40vh;
-    background-color: white;
+    background-color: #fff;
     background-image: url(/static/images/europe_asia.png);
     background-size: cover;
     background-repeat: no-repeat;
     background-position: 50% 50%;
-    color: black;
+    color: #000;
 
     text-align: center;
     padding-bottom: 2em;
@@ -25,18 +32,40 @@
         font-weight: normal;
         padding-bottom: 0;
     }
+
+    .search-area {
+        max-width: 500px;
+        margin: 2em auto 0 auto;
+    }
+
+    .sample-searches {
+        margin-top: .7em;
+        font-size: 1em;
+        font-weight: bold;
+    }
+	.flag-group {
+		text-transform: capitalize;
+		margin: 0 auto;
+    	display: table;
+		li {
+            list-style-type: none;
+            display: inline-block;
+            margin: 10px;
+            vertical-align: top;
+            cursor: pointer;
+		}
+		.flag-item {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto;
+            border-radius: 50%;
+            background-size: cover;
+            background-position: center;
+            box-shadow: 0 0 4px rgba(0,0,0,0.2);
+          }
+	}
 }
 
-.jumbotron .search-area {
-    max-width: 500px;
-    margin: 2em auto 0 auto;
-}
-
-.jumbotron .sample-searches {
-    margin-top: .7em;
-    font-size: 1em;
-    font-weight: bold;
-}
 
 .home {
     .feature {
@@ -62,4 +91,196 @@
         }
 
     }
+
+	.carousel {
+		padding: 0 0 60px;
+		p {
+            font-size: 15px;
+        }
+		.use-cases__illustration {
+			padding: 30px;
+			img {
+				width: 90%;
+			}
+		}
+		.carousel-inner {
+			height: 550px;
+            width: inherit;
+			.carousel-control {
+				z-index: 5;
+				&.right-ctrl {
+					left: auto;
+					right: 0;
+				}
+			}
+		}
+
+	}
+
+	.dark-row, .dark-row i{
+        background: $grey;
+        color: #fff;
+	}
+	.row-dark{
+		background-color: $maroon;
+		color: #fff;
+		font-size: 17px;
+		padding: 20px 0;
+		.call-to-action-section__button {
+           margin-top: 6%;
+            text-align: right;
+           font-size: 16px;
+           min-height: 60px;
+		}
+		.button--large {
+			padding: 16px 35px;
+			background-color: #fff;
+			color: $maroon;
+			font-size: 18px;
+			font-weight: 600;
+		}
+	}
+
+
+	#newsCarousel {
+		.item {
+
+		height: 600px;
+        overflow-y: scroll;
+		}
+	}
+
+	#useCaseCarousel {
+		.carousel-inner {
+			height: 450px;
+			min-height: 450px;
+			display: table-cell;
+			text-transform: none;
+			.use-cases__h3 {
+				font-weight: 400;
+				color: $maroon;
+				margin-bottom: 0;
+
+			}
+			.use-cases__h2 {
+				font-weight: 200;
+				color: $light-maroon;
+				margin-top: 0;
+			}
+			.button--small {
+				padding: 4px 20px 4px 20px;
+				background-color: $maroon;
+			}
+		}
+		.carousel-control {
+			z-index: 100;
+			opacity: 1;
+			color: $darker-grey;
+			&:hover {
+				transition: .5s color ease-out;
+				color: $grey;
+			}
+			&.right-ctrl {
+				left: auto;
+				right: 0;
+			}
+		}
+		.carousel-indicators li{
+			border: 1px solid $darker-grey;
+		}
+
+	}
+    .item {
+	    padding: 15px 15%;
+	    a {
+			color: #fff;
+			cursor: pointer;
+			text-decoration: none;
+	    }
+	    .col-md-12 {
+			border-bottom: 12px solid $grey;
+			overflow: hidden;
+		}
+        .news-item {
+            background: rgba(0, 0, 0, 0.15);
+            border-left: 12px solid $grey;
+            border-bottom: 12px solid $grey;
+            margin-bottom: -1000px;
+            padding-bottom: 1000px;
+            min-height: 150px;
+            transition: background-color 0.2s ease-out;
+            -webkit-transition: background-color 0.2s ease-out;
+            -moz-transition: background-color 0.2s ease-out;
+            -o-transition: background-color 0.2s ease-out;
+	        &:hover {
+		        background-color: rgba(0, 0, 0, 0.10);
+                cursor: pointer;
+		    }
+	        h2 {
+			    padding: 10px 10px 0 10px;
+			    margin-bottom: 0;
+			    font-size: 1.1em;
+			    word-wrap: break-word;
+		    }
+	        p{
+				padding: 5px 10px 0 10px;
+			}
+	        .date {
+			    margin-left: 10px;
+			    font-style: italic;
+			    font-size: 0.8em;
+			    color: #fff;
+	        }
+	        @media screen and (max-width: $break-md) {
+		        margin-bottom: 0;
+		        padding-bottom: 0;
+			}
+        }
+    }
+}
+
+footer {
+	background: $light-grey;
+	padding-bottom: 0;
+	.logo {
+		height: 100px;
+		padding: 10px 5px;
+	}
+	.footer_text {
+		li {
+			white-space: nowrap;
+			list-style: none;
+		}
+		h3 {
+			padding-right: 20px;
+			color: $maroon;
+            text-transform: capitalize;
+            white-space: nowrap;
+			margin-left: 40px;
+		}
+		a{
+            color: #000;
+			text-decoration: none;
+			&:hover {
+				text-decoration: underline !important;
+			}
+		}
+	}
+	.attributions {
+		padding: 15px;
+		background: $grey;
+		.mentions {
+			float: right;
+			img {
+				height: 30px;
+				margin: 10px 20px;
+			}
+			span {
+				margin: 15px 5px 15px 10px;
+			}
+			.mention {
+				float: right;
+			}
+		}
+	}
 }

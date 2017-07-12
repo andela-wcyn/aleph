@@ -17,28 +17,7 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
     <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700,800" rel="stylesheet">
     <link type="text/css" href="{{ url_for('static', filename='assets/aleph.css') }}" rel="stylesheet">
-    <link rel="shortcut icon" href="{{ config.APP_FAVICON }}"/>
-      <style>
-          .flag-item {
-            width: 60px;
-            height: 60px;
-            margin: 0 auto;
-            border-radius: 50%;
-            background-size: cover;
-            background-position: center;
-            box-shadow: 0 0 4px rgba(0,0,0,0.2);
-          }
-          .flag-group {
-              text-transform: capitalize;
-          }
-          .flag-group li {
-            list-style-type: none;
-            display: inline-block;
-            width: 7%;
-            vertical-align: top;
-            cursor: pointer;
-          }
-      </style>
+    <link rel="shortcut icon" href="{{ config.APP_FAVICON }}">
 
     <base href="{{url_for('.ui')}}">
   </head>
@@ -145,19 +124,54 @@
       <div class="container-fluid">
         <div class="row">
           <div class="col-md-12">
-            <p class="pull-right">
-              <strong>&alefsym;</strong>
-              aleph search engine &middot;
-              <i class="fa fa-github-square"></i>
-              <a href="https://github.com/opengazettes/aleph" target="_blank">source code</a>
-              &middot;
-              <a href="/help">search guide</a>
-              &middot;
-              <a href="/help/api">api documentation</a>
-            </p>
+              <div style="margin: 0 auto; display: table;">
+                <a href="http://kenyalaw.org" target="_blank"><img src="static/images/logos/kenyalaw.png" class="logo" alt="Kenya Law" style="height: 75px;"></a>
+                <a href="https://www.africanlii.org"  target="_blank" rel="noopener"><img src="static/images/logos/africanlii.png" class="logo" alt="AfricanLII"></a>
+                <a href="https://investigativecenters.org"  target="_blank"><img src="static/images/logos/ancir.png" class="logo" alt="ANCIR"></a>
+              </div>
           </div>
         </div>
-      </div>
+        <div class="row footer_text">
+        <div class="col-md-8 col-md-offset-2">
+          <div class="col-sm-4">
+            <h3>Solutions</h3>
+            <ul>
+              <li><a href="/solutions">Use Cases</a></li>
+              <li><a href="/plans">Plans &amp; Pricing</a></li>
+              <li><a href="/contact">Contact Sales</a></li>
+            </ul>
+          </div>
+          <div class="col-sm-2">
+            <h3>Documentation</h3>
+            <ul>
+              <li><a href="/about">About OpenGazettes</a></li>
+              <li><a href="/api">API Reference</a></li>
+            </ul>
+          </div>
+          <div class="col-sm-3 col-sm-offset-3">
+            <h3>Policies</h3>
+            <ul>
+              <li><a href="/privacy_policy">Privacy Policy</a></li>
+              <li><a href="/redaction_policy">Redaction Policy</a></li>
+            </ul>
+          </div>
+        </div>
+        </div>
+        <div class="row attributions">
+          <div class="col-md-12">
+            <div class="mentions">
+              <div class="mention">
+                <span>Funded by</span>
+                <a href="https://innovateafrica.fund/" target="_blank"><img src="static/images/logos/Innovate_africa.png" alt="Innovateafrica"></a>
+              </div>
+              <div class="mention">
+                <span>&nbsp; Brought to you by</span>
+                <a href="https://codeforafrica.org/" target="_blank"><img src="static/images/logos/CfAFRICA-White.png" alt="CfA"></a>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
     </footer>
 
     {% if config.GA_TRACKING_ID is defined %}
@@ -178,5 +192,6 @@
     {% endfor %}
 
     <script src="{{ url_for('static', filename='assets/aleph.js') }}"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
   </body>
 </html>
