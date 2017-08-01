@@ -1,5 +1,5 @@
 {
-	"AF":"AFGHANISTAN",
+	"AF":"AFGHANISTAN",dsgd
 	"AX":"ALAND ISLANDS",
 	"AL":"ALBANIA",
 	"DZ":"ALGERIA",
@@ -245,6 +245,4 @@
 	"YE":"YEMEN",
 	"ZM":"ZAMBIA",
 	"ZW ":"ZIMBABWE"
-}/**
- * Created by wcyn on 10/07/2017.
- */
+}
